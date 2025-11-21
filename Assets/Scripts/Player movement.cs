@@ -30,11 +30,11 @@ public class Playermovement : MonoBehaviour
     void OnEnable()
     {
         inputAction.Enable();
-        inputAction.Player.Move.performed += OnmoveInput;
+        inputAction.Player.Move.performed += OnMoveInput;
     }
     void OnDisable()
     {
-        inputAction.Player.Move.performed -= OnmoveInput;
+        inputAction.Player.Move.performed -= OnMoveInput;
         inputAction.Disable();
     }
     void Start()
@@ -52,15 +52,9 @@ public class Playermovement : MonoBehaviour
         UpdatePosition();
     }
 
-    // Update is called once per frame
     void Update()
     {
         MoveToTarget();
-    }
-    void UpdatePosition()
-    {
-        Vector3 worldPosition = grid.CellToWorld(new Vector3Int(gridPosition.x, gridPosition.y, 0));
-        transform.position = worldPosition;
     }
 
     void OnMoveInput(InputAction.CallbackContext context)
@@ -87,24 +81,81 @@ public class Playermovement : MonoBehaviour
 
     void Move(Vector2Int direction)
     {
+        Vector2Int newPosition = gridPosition + direction;
 
+        if (!IsPositionValid(newPosition))
+        {
+            Debug.Log("Movimiento bloqueado: fuera de límites");
+            return;
+        }
+
+        gridPosition = newPosition;
+
+        Vector3 cellWorldPos = grid.CellToWorld(new Vector3Int(gridPosition.x, gridPosition.y, 0));
+        targetPosition = new Vector3(
+            cellWorldPos.x + grid.cellSize.x / 2f,
+            transform.position.y,
+            cellWorldPos.z + grid.cellSize.z / 2f
+        );
+
+        isMoving = true;
     }
     bool IsPositionValid(Vector2Int position)
     {
+        //if (tilemap == null) return true;
+
+        //if (position.x < tilemapBounds.xMin || position.x >= tilemapBounds.xMax)
+        //    return false;
+        //if (position.y < tilemapBounds.yMin || position.y >= tilemapBounds.yMax)
+        //    return false;
+
+        Vector3Int cellPosition = new Vector3Int(position.x, position.y, 0);
+        TileBase tile = tilemap.GetTile(cellPosition);
+
+        // Comentado para permitir movimiento en tiles vacíos
+        // return tile != null;
+        // Por ahora, permite moverse dentro de los bounds aunque no haya tile
         return true;
     }
     void UpdatePosition()
     {
-
+        Vector3 cellWorldPos = grid.CellToWorld(new Vector3Int(gridPosition.x, gridPosition.y, 0));
+        transform.position = new Vector3(
+            cellWorldPos.x + grid.cellSize.x / 2f,
+            transform.position.y,
+            cellWorldPos.z + grid.cellSize.z / 2f
+        );
+        targetPosition = transform.position;
     }
     void MoveToTarget()
     {
+        if (!isMoving) return;
 
+        transform.position = Vector3.MoveTowards(
+            transform.position,
+            targetPosition,
+            moveSpeed * Time.deltaTime
+        );
+
+        if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
+        {
+            transform.position = targetPosition;
+            isMoving = false;
+        }
     }
 
     void OnDrawGizmos()
     {
+        if (grid == null) return;
 
+        Gizmos.color = Color.yellow;
+        Vector3 cellWorldPos = grid.CellToWorld(new Vector3Int(gridPosition.x, gridPosition.y, 0));
+        Vector3 gizmoPos = new Vector3(
+            cellWorldPos.x + grid.cellSize.x / 2f,
+            0.1f,
+            cellWorldPos.z + grid.cellSize.z / 2f
+        );
+        Gizmos.DrawWireCube(gizmoPos, new Vector3(grid.cellSize.x, 0.1f, grid.cellSize.z));
     }
 }
 

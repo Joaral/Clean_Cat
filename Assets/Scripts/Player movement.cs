@@ -30,9 +30,12 @@ public class Playermovement : MonoBehaviour
     {
         inputAction.Enable();
         inputAction.Player.Move.performed += OnMoveInput;
+        inputAction.Player.Move.canceled += ctx => moveInput = Vector2.zero;
+
     }
     void OnDisable()
     {
+        inputAction.Player.Move.canceled -= ctx => moveInput = Vector2.zero;
         inputAction.Player.Move.performed -= OnMoveInput;
         inputAction.Disable();
     }
@@ -55,15 +58,25 @@ public class Playermovement : MonoBehaviour
 
     void Update()
     {
+        if (!isMoving && moveInput != Vector2.zero) 
+        {
+            TryMovefrominput();
+        }
+
         MoveToTarget();
 
     }
 
     void OnMoveInput(InputAction.CallbackContext context)
     {
-        if (isMoving) return;
+        //este if obliga al player a moverse la casilla al completo antes de poder volver a leer el input
+        //if (isMoving) return;   
 
         moveInput = context.ReadValue<Vector2>();
+        
+    }
+    void TryMovefrominput()
+    {
         Vector2Int direction = Vector2Int.zero;
 
         if (Mathf.Abs(moveInput.x) > Mathf.Abs(moveInput.y))
@@ -121,9 +134,6 @@ public class Playermovement : MonoBehaviour
         Vector3Int cellPosition = new Vector3Int(position.x, position.y, 0);
         TileBase tile = tilemap.GetTile(cellPosition);
 
-        //Comentado para permitir movimiento en tiles vacíos
-        // return tile != null;
-        //Por ahora, permite moverse dentro de los bounds aunque no haya tile
         return true;
     }
     void UpdatePosition()

@@ -109,6 +109,12 @@ public class Playermovement : MonoBehaviour
             return;
         }
 
+        if (GridManager.Instance != null && GridManager.Instance.IsTileWet(grid.GetCellCenterWorld(new Vector3Int(newPosition.x, newPosition.y, 0))))
+        {
+            Debug.Log("¡No puedes pisar casillas mojadas!");
+            return;
+        }
+
         gridPosition = newPosition;
 
         Vector3 cellCenter = grid.GetCellCenterWorld(new Vector3Int(gridPosition.x, gridPosition.y, 0));

@@ -13,118 +13,140 @@ public class GridManager : MonoBehaviour
 {
     public static GridManager Instance { get; private set; }
 
-    [Header("Tilemap References")]
+    [Header("Grid Settings")]
+    public float cellSize = 1f;
+
+    [Header("Tilemaps")]
     public Tilemap dirtTilemap;
     public Tilemap wetTilemap;
-    public Grid grid;
 
-    [Header("Tiles")]
-    public TileBase dirtTile;
-    public TileBase wetTile;
+    [Header("Prefabs")]
+    public GameObject cleanPrefab;
+    public GameObject wetPrefab;
 
-    [Header("Level Stats")]
-    public int totalDirtTiles = 0;
-    public int cleanedTiles = 0;
-
+    // Diccionario que guarda el estado de cada celda
     private Dictionary<Vector2Int, TileState> tileStates = new Dictionary<Vector2Int, TileState>();
+
     private UIManager uiManager;
 
     void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     void Start()
     {
-        uiManager = FindObjectOfType<UIManager>();
-        InitializeDirtTiles();
+        uiManager = FindFirstObjectByType<UIManager>();
     }
 
-    void InitializeDirtTiles()
-    {
-        if (dirtTilemap == null) return;
-
-        BoundsInt bounds = dirtTilemap.cellBounds;
-
-        foreach (Vector3Int pos in bounds.allPositionsWithin)
-        {
-            if (dirtTilemap.HasTile(pos))
-            {
-                Vector2Int gridPos = new Vector2Int(pos.x, pos.y);
-                tileStates[gridPos] = TileState.Dirty;
-                totalDirtTiles++;
-            }
-        }
-
-        Debug.Log($"Total de casillas sucias: {totalDirtTiles}");
-        UpdateCleaningProgress();
-    }
-
+    // ===============================
+    //          LIMPIAR SUCIEDAD
+    // ===============================
     public void CleanDirt(Vector2Int gridPosition)
     {
         Vector3Int cellPos = new Vector3Int(gridPosition.x, gridPosition.y, 0);
 
-        if (tileStates.ContainsKey(gridPosition) && tileStates[gridPosition] == TileState.Dirty)
-        {
-            // Limpiar la suciedad
-            dirtTilemap.SetTile(cellPos, null);
-            tileStates[gridPosition] = TileState.Clean;
-            cleanedTiles++;
+        // Si no existe, asumimos que está sucio
+        if (!tileStates.ContainsKey(gridPosition))
+            tileStates[gridPosition] = TileState.Dirty;
 
-            Debug.Log($"Casilla limpiada: {gridPosition}. Progreso: {cleanedTiles}/{totalDirtTiles}");
-            UpdateCleaningProgress();
+        if (tileStates[gridPosition] == TileState.Dirty)
+        {
+            // Quitar tile del tilemap
+            dirtTilemap.SetTile(cellPos, null);
+
+            // Destruir cualquier prefab que exista en esa posición
+            DestroyTileObjectAt(dirtTilemap, cellPos);
+
+            tileStates[gridPosition] = TileState.Clean;
+
+            // Instanciar prefab limpio si existe
+            if (cleanPrefab != null)
+                Instantiate(cleanPrefab, dirtTilemap.GetCellCenterWorld(cellPos), Quaternion.identity);
+
+            Debug.Log($"Casilla limpiada: {gridPosition}");
         }
     }
 
+    // ===============================
+    //              MOJAR TILE
+    // ===============================
     public void MopTile(Vector2Int gridPosition)
     {
         Vector3Int cellPos = new Vector3Int(gridPosition.x, gridPosition.y, 0);
 
-        // Solo se puede fregar si está limpio (no sucio)
-        if (!tileStates.ContainsKey(gridPosition) || tileStates[gridPosition] != TileState.Dirty)
+        // No se puede mojar si sigue sucio
+        if (tileStates.ContainsKey(gridPosition) && tileStates[gridPosition] == TileState.Dirty)
         {
-            wetTilemap.SetTile(cellPos, wetTile);
-            tileStates[gridPosition] = TileState.Wet;
-            Debug.Log($"Casilla mojada: {gridPosition}");
+            Debug.Log("¡No puedes fregar sobre suciedad!");
+            return;
         }
-        else
-        {
-            Debug.Log("¡No puedes fregar sobre suciedad! Usa la escoba primero.");
-        }
+
+        // Destruir cualquier prefab anterior
+        DestroyTileObjectAt(wetTilemap, cellPos);
+
+        // Quitar tile húmedo del tilemap
+        wetTilemap.SetTile(cellPos, null);
+
+        tileStates[gridPosition] = TileState.Wet;
+
+        // Instanciar prefab mojado si existe
+        if (wetPrefab != null)
+            Instantiate(wetPrefab, wetTilemap.GetCellCenterWorld(cellPos), Quaternion.identity);
+
+        Debug.Log($"Casilla mojada: {gridPosition}");
     }
 
-    public bool IsTileWet(Vector3 worldPosition)
+    // ===============================
+    //     CONSULTAS DE ESTADO
+    // ===============================
+    public bool IsTileWet(Vector2Int gridPosition)
     {
-        Vector3Int cellPos = grid.WorldToCell(worldPosition);
-        Vector2Int gridPos = new Vector2Int(cellPos.x, cellPos.y);
-
-        return tileStates.ContainsKey(gridPos) && tileStates[gridPos] == TileState.Wet;
+        return tileStates.ContainsKey(gridPosition) && tileStates[gridPosition] == TileState.Wet;
     }
 
     public bool IsTileDirty(Vector2Int gridPosition)
     {
-        return tileStates.ContainsKey(gridPosition) && tileStates[gridPosition] == TileState.Dirty;
+        // Si no existe en el diccionario, asumimos que está sucia
+        return !tileStates.ContainsKey(gridPosition) || tileStates[gridPosition] == TileState.Dirty;
     }
 
-    void UpdateCleaningProgress()
+    public bool IsTileWet(Vector3 worldPos)
     {
-        if (uiManager != null)
+        Vector2Int gridPos = new Vector2Int(
+            Mathf.RoundToInt(worldPos.x / cellSize),
+            Mathf.RoundToInt(worldPos.y / cellSize)
+        );
+        return IsTileWet(gridPos);
+    }
+
+    public bool IsTileDirty(Vector3 worldPos)
+    {
+        Vector2Int gridPos = new Vector2Int(
+            Mathf.RoundToInt(worldPos.x / cellSize),
+            Mathf.RoundToInt(worldPos.y / cellSize)
+        );
+        return IsTileDirty(gridPos);
+    }
+
+    // ===============================
+    //     DESTRUCCIÓN DE PREFABS TILE
+    // ===============================
+    void DestroyTileObjectAt(Tilemap tilemap, Vector3Int cellPos)
+    {
+        Vector3 worldPos = tilemap.GetCellCenterWorld(cellPos);
+        float radius = 0.1f; // margen pequeño
+
+        Collider2D[] hits = Physics2D.OverlapCircleAll(worldPos, radius);
+
+        foreach (var h in hits)
         {
-            float progress = totalDirtTiles > 0 ? (float)cleanedTiles / totalDirtTiles : 0f;
-            uiManager.UpdateCleaningBar(progress);
+            if (h.transform.parent == tilemap.transform)
+            {
+                Destroy(h.gameObject);
+            }
         }
-    }
-
-    public float GetCleaningPercentage()
-    {
-        return totalDirtTiles > 0 ? (float)cleanedTiles / totalDirtTiles * 100f : 0f;
     }
 }
 

@@ -16,20 +16,20 @@ public class ToolInventory : MonoBehaviour
     private Playermovement playerMovement;
     private UIManager uiManager;
 
-    private void Awake()
+    public void Awake()
     {
         inputAction = new PlayerInput();
         playerMovement = GetComponent<Playermovement>();
     }
 
-    private void OnEnable()
+    public void OnEnable()
     {
         inputAction.Enable();
         inputAction.Player.UseTool.performed += OnUseTool;
         inputAction.Player.SwitchTool.performed += OnSwitchTool;
     }
 
-    private void OnDisable()
+    public void OnDisable()
     {
         inputAction.Player.UseTool.performed -= OnUseTool;
         inputAction.Player.SwitchTool.performed -= OnSwitchTool;
@@ -38,11 +38,11 @@ public class ToolInventory : MonoBehaviour
 
     void Start()
     {
-        uiManager = FindObjectOfType<UIManager>();
+        //uiManager = FindObjectOfType<UIManager>();
         UpdateUI();
     }
 
-    void OnUseTool(InputAction.CallbackContext context)
+    public void OnUseTool(InputAction.CallbackContext context)
     {
         if (tools[currentToolIndex] != null)
         {
@@ -50,7 +50,7 @@ public class ToolInventory : MonoBehaviour
         }
     }
 
-    void OnSwitchTool(InputAction.CallbackContext context)
+    public void OnSwitchTool(InputAction.CallbackContext context)
     {
         if (tools[0] != null && tools[1] != null)
         {
@@ -62,7 +62,6 @@ public class ToolInventory : MonoBehaviour
 
     public void PickupTool(Tool newTool)
     {
-        // Si hay espacio libre, añadir la herramienta
         for (int i = 0; i < maxTools; i++)
         {
             if (tools[i] == null)
@@ -74,7 +73,6 @@ public class ToolInventory : MonoBehaviour
             }
         }
 
-        // Si no hay espacio, reemplazar la herramienta actual
         Debug.Log($"Reemplazando {tools[currentToolIndex].toolName} por {newTool.toolName}");
         tools[currentToolIndex] = newTool;
         UpdateUI();

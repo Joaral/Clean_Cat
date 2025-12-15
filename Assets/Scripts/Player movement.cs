@@ -22,6 +22,9 @@ public class Playermovement : MonoBehaviour
     [SerializeField] private PlayerInput inputAction;
     [SerializeField] Vector2 moveInput;
 
+    [Header("other")]
+    public int searchRadius = 10;
+
     private void Awake()
     {
         inputAction = new PlayerInput();
@@ -48,9 +51,57 @@ public class Playermovement : MonoBehaviour
         }
         if (tilemap == null)
         {
-            tilemap.CompressBounds();
-            tilemapBounds = tilemap.cellBounds;
             Debug.Log("No se ha asignado un tilemap. Bounds asignados por defecto(0,0)");
+            return;
+        }
+
+        // DEBUG COMPLETO
+        Debug.Log("=== DIAGNÓSTICO INICIAL ===");
+        Debug.Log($"Grid Cell Size: {grid.cellSize}");
+        Debug.Log($"Player Transform Position: {transform.position}");
+        Debug.Log($"Grid Position configurada: {gridPosition}");
+
+        // Ver qué celda corresponde a la posición del player
+        Vector3Int calculatedCell = grid.WorldToCell(transform.position);
+        Debug.Log($"Celda calculada desde Transform: {calculatedCell}");
+
+        // Ver si hay tile en esa celda
+        bool hasTileAtCalculated = tilemap.GetTile(calculatedCell) != null;
+        Debug.Log($"¿Hay tile en {calculatedCell}? {hasTileAtCalculated}");
+
+        // Ver si hay tile en (0,0)
+        Vector3Int zeroCell = new Vector3Int(0, 0, 0);
+        bool hasTileAtZero = tilemap.GetTile(zeroCell) != null;
+        Debug.Log($"¿Hay tile en (0,0)? {hasTileAtZero}");
+
+        // Ver los bounds del tilemap
+        Debug.Log($"Tilemap Bounds: {tilemap.cellBounds}");
+
+        // Contar tiles totales
+        int tileCount = 0;
+        BoundsInt bounds = tilemap.cellBounds;
+        foreach (Vector3Int pos in bounds.allPositionsWithin)
+        {
+            if (tilemap.HasTile(pos))
+            {
+                tileCount++;
+                // Mostrar las primeras 5 posiciones con tiles
+                if (tileCount <= 5)
+                {
+                    Debug.Log($"  Tile encontrado en: {pos}");
+                }
+            }
+        }
+        Debug.Log($"Total de tiles en Tilemap_Floor: {tileCount}");
+        Debug.Log("=========================");
+
+        // Usar la celda calculada en lugar de gridPosition manual
+        gridPosition = new Vector2Int(calculatedCell.x, calculatedCell.y);
+
+        if (!IsPositionValid(gridPosition))
+        {
+            Debug.LogWarning($"La posición inicial {gridPosition} no es válida. Buscando posicion valida...");
+            gridPosition = FindNearestValidPosition(gridPosition);
         }
 
         UpdatePosition();
@@ -69,11 +120,7 @@ public class Playermovement : MonoBehaviour
 
     void OnMoveInput(InputAction.CallbackContext context)
     {
-        //este if obliga al player a moverse la casilla al completo antes de poder volver a leer el input
-        //if (isMoving) return;   
-
-        moveInput = context.ReadValue<Vector2>();
-        
+        moveInput = context.ReadValue<Vector2>();   
     }
     void TryMovefrominput()
     {
@@ -109,11 +156,11 @@ public class Playermovement : MonoBehaviour
             return;
         }
 
-        if (GridManager.Instance != null && GridManager.Instance.IsTileWet(grid.GetCellCenterWorld(new Vector3Int(newPosition.x, newPosition.y, 0))))
-        {
-            Debug.Log("¡No puedes pisar casillas mojadas!");
-            return;
-        }
+        //if (GridManager.Instance != null && GridManager.Instance.IsTileWet(grid.GetCellCenterWorld(new Vector3Int(newPosition.x, newPosition.y, 0))))
+        //{
+        //    Debug.Log("¡No puedes pisar casillas mojadas!");
+        //    return;
+        //}
 
         gridPosition = newPosition;
 
@@ -124,24 +171,61 @@ public class Playermovement : MonoBehaviour
     }
     bool IsPositionValid(Vector2Int position)
     {
-        if (tilemap == null) return true;
+        if (tilemap == null)
+        {
+            Debug.LogWarning("No hay tilemap asignado. Se permite el movimiento.");
+            return true;
+        }
 
-        if (position.x < tilemapBounds.xMin || position.x >= tilemapBounds.xMax)
-        {
-            Debug.Log(tilemapBounds.xMin + " " + tilemapBounds.xMax);
-            return false;
-        }
-        if (position.y < tilemapBounds.yMin || position.y >= tilemapBounds.yMax)
-        {
-            Debug.Log(tilemapBounds.yMin + " " + tilemapBounds.yMax);
-            return false;
-        }
+        //if (position.x < tilemapBounds.xMin || position.x >= tilemapBounds.xMax)
+        //{
+        //    Debug.Log(tilemapBounds.xMin + " " + tilemapBounds.xMax);
+        //    return false;
+        //}
+        //if (position.y < tilemapBounds.yMin || position.y >= tilemapBounds.yMax)
+        //{
+        //    Debug.Log(tilemapBounds.yMin + " " + tilemapBounds.yMax);
+        //    return false;
+        //}
 
         Vector3Int cellPosition = new Vector3Int(position.x, position.y, 0);
         TileBase tile = tilemap.GetTile(cellPosition);
 
+        if ( tile == null)
+        {
+            Debug.Log($"Movimiento bloqueado: No hay suelo en {position}");
+            return false;
+        }
+        //if (GridManager.Instance != null && GridManager.Instance.IsTileWet(grid.GetCellCenterWorld(cellPosition)))
+        //{
+        //    Debug.Log("Movimiento bloqueado: Casilla mojada");
+        //    return false;
+        //}
         return true;
     }
+
+    Vector2Int FindNearestValidPosition(Vector2Int startPosition)
+    {
+        for ( int radius = 1; radius <= searchRadius; radius++)
+        {
+
+            for (int x = -radius; x <= radius; x++)
+            {
+                for (int y = -radius; y <= radius; y++)
+                {
+                    Vector2Int checkPosition = startPosition + new Vector2Int(x, y);
+                    if (IsPositionValid(checkPosition))
+                    {
+                        Debug.Log($"Posición válida encontrada en {checkPosition}");
+                        return checkPosition;
+                    }
+                }
+            }
+        }
+        Debug.LogError("No se encontró una posición válida cercana.");
+        return startPosition;
+    }
+
     void UpdatePosition()
     {
         Vector3 cellCenter = grid.GetCellCenterWorld(new Vector3Int(gridPosition.x, gridPosition.y, 0));
@@ -174,6 +258,21 @@ public class Playermovement : MonoBehaviour
         Vector3 cellCenter = grid.GetCellCenterWorld(new Vector3Int(gridPosition.x, gridPosition.y, 0));
         Vector3 gizmoPos = new Vector3(cellCenter.x, 0.1f, cellCenter.z);
         Gizmos.DrawWireCube(gizmoPos, new Vector3(grid.cellSize.x, 0.1f, grid.cellSize.y));
+
+        if (tilemap != null)
+        {
+            Gizmos.color = Color.green;
+            BoundsInt bounds = tilemap.cellBounds;
+            foreach (Vector3Int pos in bounds.allPositionsWithin)
+            {
+                if (tilemap.HasTile(pos))
+                {
+                    Vector3 center = grid.GetCellCenterWorld(pos);
+                    Gizmos.DrawWireCube(new Vector3(center.x, 0.05f, center.z),
+                                       new Vector3(grid.cellSize.x * 0.9f, 0.05f, grid.cellSize.y * 0.9f));
+                }
+            }
+        }
     }
 }
 

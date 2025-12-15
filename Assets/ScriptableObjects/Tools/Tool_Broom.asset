@@ -10,9 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9732ce90f8448ed479605cb91bed60eb, type: 3}
-  m_Name: Escoba
+  m_Name: Tool_Broom
   m_EditorClassIdentifier: 
   toolName: Escoba
   toolType: 0
-  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  prefab: {fileID: 8078352054116462250, guid: 4b5a20aace9e58649b82023ef5018169, type: 3}
+  icon: {fileID: 21300000, guid: 18a6f0d50e1f45445916c1f0b8931ed9, type: 3}

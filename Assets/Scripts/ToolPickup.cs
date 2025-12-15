@@ -24,7 +24,7 @@ public class ToolPickup : MonoBehaviour
 
             if (inventory != null)
             {
-                inventory.PickupTool(toolData);
+                //inventory.PickupTool(toolData);
                 Destroy(gameObject);
             }
         }

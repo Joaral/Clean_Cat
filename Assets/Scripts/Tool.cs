@@ -15,5 +15,4 @@ public class Tool : ScriptableObject
     public string toolName;
     public ToolType toolType;
     public Sprite icon;
-    public GameObject prefab;
 }

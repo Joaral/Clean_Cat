@@ -4,106 +4,65 @@ using UnityEngine.InputSystem;
 public class ToolInventory : MonoBehaviour
 {
     [Header("Inventory Settings")]
-    public int maxTools = 2;
-
-    [Header("Current Tools")]
-    public Tool[] tools = new Tool[2];
-    public int currentToolIndex = 0;
+    public Tool currentTool;
 
     [Header("Input")]
     [SerializeField] private PlayerInput inputAction;
+    [SerializeField] private Playermovement playerMovement;
 
-    private Playermovement playerMovement;
-    private UIManager uiManager;
-
-    public void Awake()
+    private void Awake()
     {
         inputAction = new PlayerInput();
         playerMovement = GetComponent<Playermovement>();
     }
 
-    public void OnEnable()
+    private void OnEnable()
     {
         inputAction.Enable();
         inputAction.Player.UseTool.performed += OnUseTool;
-        inputAction.Player.SwitchTool.performed += OnSwitchTool;
     }
-
-    public void OnDisable()
+    private void OnDisable()
     {
         inputAction.Player.UseTool.performed -= OnUseTool;
-        inputAction.Player.SwitchTool.performed -= OnSwitchTool;
         inputAction.Disable();
     }
 
-    void Start()
+    void OnUseTool(InputAction.CallbackContext context)
     {
-        //uiManager = FindObjectOfType<UIManager>();
-        UpdateUI();
-    }
-
-    public void OnUseTool(InputAction.CallbackContext context)
-    {
-        if (tools[currentToolIndex] != null)
+        if (currentTool == null)
         {
-            UseTool(playerMovement.gridPosition);
-        }
-    }
-
-    public void OnSwitchTool(InputAction.CallbackContext context)
-    {
-        if (tools[0] != null && tools[1] != null)
-        {
-            currentToolIndex = (currentToolIndex + 1) % maxTools;
-            UpdateUI();
-            Debug.Log($"Cambiado a herramienta: {tools[currentToolIndex].toolName}");
-        }
-    }
-
-    public void PickupTool(Tool newTool)
-    {
-        for (int i = 0; i < maxTools; i++)
-        {
-            if (tools[i] == null)
-            {
-                tools[i] = newTool;
-                Debug.Log($"Herramienta recogida: {newTool.toolName} en slot {i}");
-                UpdateUI();
-                return;
-            }
+            Debug.Log("No tienes ninguna herramienta equipada.");
+            return;
         }
 
-        Debug.Log($"Reemplazando {tools[currentToolIndex].toolName} por {newTool.toolName}");
-        tools[currentToolIndex] = newTool;
-        UpdateUI();
+        UseTool();
     }
 
-    public void UseTool(Vector2Int gridPosition)
+    void UseTool()
     {
-        Tool currentTool = tools[currentToolIndex];
+        Vector2Int playerPos = playerMovement.gridPosition;
 
-        if (currentTool == null) return;
+        switch (currentTool.toolType)
+        {
+            case ToolType.Broom:
+                UseBroom(playerPos);
+                break;
 
-        if (currentTool.toolType == ToolType.Broom)
-        {
-            GridManager.Instance.CleanDirt(gridPosition);
         }
-        else if (currentTool.toolType == ToolType.Mop)
-        {
-            GridManager.Instance.MopTile(gridPosition);
-        }
+
     }
-
-    void UpdateUI()
+    void UseBroom(Vector2Int position)
     {
-        if (uiManager != null)
-        {
-            uiManager.UpdateToolInventory(tools, currentToolIndex);
-        }
+        Debug.Log("Usando la escoba para limpiar.");
+        if (GridManager.Instance == null) return;
+
+        GridManager.Instance.CleanDirt(position);
     }
 
-    public Tool GetCurrentTool()
+    public void EquipTool(Tool newTool)
     {
-        return tools[currentToolIndex];
+        currentTool = newTool;
+        Debug.Log($"Herramienta equipada: {newTool.toolName}");
     }
+
 }
